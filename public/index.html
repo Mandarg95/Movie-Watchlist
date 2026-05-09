@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CineList — Your Movie Watchlist</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ── Noise Overlay ─────────────────────────────────── -->
+<div class="noise"></div>
+
+<!-- ── Header ────────────────────────────────────────── -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">◈</span>
+      <span class="logo-text">CineList</span>
+    </div>
+
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="discover">Discover</button>
+      <button class="nav-tab" data-tab="watchlist">My List</button>
+      <button class="nav-tab" data-tab="stats">Stats</button>
+    </nav>
+
+    <div class="header-search">
+      <input type="text" id="searchInput" class="search-input" placeholder="Search movies & shows…" />
+      <button id="searchBtn" class="search-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ── Main ───────────────────────────────────────────── -->
+<main class="main">
+
+  <!-- Discover Tab -->
+  <section id="tab-discover" class="tab-content active">
+    <div class="section-header">
+      <h2 class="section-title">Trending This Week</h2>
+      <div class="filter-row">
+        <select id="filterGenre" class="filter-select">
+          <option value="">All Genres</option>
+          <option value="Action">Action</option>
+          <option value="Comedy">Comedy</option>
+          <option value="Drama">Drama</option>
+          <option value="Horror">Horror</option>
+          <option value="Sci-Fi">Sci-Fi</option>
+          <option value="Thriller">Thriller</option>
+          <option value="Romance">Romance</option>
+          <option value="Animation">Animation</option>
+          <option value="Documentary">Documentary</option>
+        </select>
+        <select id="filterType" class="filter-select">
+          <option value="">All Types</option>
+          <option value="movie">Movies</option>
+          <option value="tv">TV Shows</option>
+        </select>
+        <select id="filterRating" class="filter-select">
+          <option value="">Any Rating</option>
+          <option value="9">9+ ⭐</option>
+          <option value="8">8+ ⭐</option>
+          <option value="7">7+ ⭐</option>
+          <option value="6">6+ ⭐</option>
+        </select>
+      </div>
+    </div>
+    <div id="trendingGrid" class="movie-grid"></div>
+    <div id="searchResults" class="movie-grid hidden"></div>
+    <div id="discoverEmpty" class="empty-state hidden">
+      <div class="empty-icon">🎬</div>
+      <p>No results found. Try a different search!</p>
+    </div>
+  </section>
+
+  <!-- Watchlist Tab -->
+  <section id="tab-watchlist" class="tab-content hidden">
+    <div class="section-header">
+      <h2 class="section-title">My Watchlist</h2>
+      <div class="filter-row">
+        <select id="wlStatus" class="filter-select">
+          <option value="">All Statuses</option>
+          <option value="want_to_watch">Want to Watch</option>
+          <option value="watching">Watching</option>
+          <option value="watched">Watched</option>
+        </select>
+        <select id="wlType" class="filter-select">
+          <option value="">All Types</option>
+          <option value="movie">Movies</option>
+          <option value="tv">TV Shows</option>
+        </select>
+        <select id="wlMinRating" class="filter-select">
+          <option value="">Any Rating</option>
+          <option value="9">9+ ⭐</option>
+          <option value="8">8+ ⭐</option>
+          <option value="7">7+ ⭐</option>
+          <option value="6">6+ ⭐</option>
+        </select>
+      </div>
+    </div>
+    <div id="watchlistGrid" class="movie-grid"></div>
+    <div id="watchlistEmpty" class="empty-state hidden">
+      <div class="empty-icon">📽️</div>
+      <p>Your watchlist is empty.<br/>Discover movies and add them here!</p>
+      <button class="btn-primary" onclick="switchTab('discover')">Browse Movies</button>
+    </div>
+  </section>
+
+  <!-- Stats Tab -->
+  <section id="tab-stats" class="tab-content hidden">
+    <div class="section-header">
+      <h2 class="section-title">My Stats</h2>
+    </div>
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <div class="stat-number" id="statTotal">—</div>
+        <div class="stat-label">Total Saved</div>
+      </div>
+      <div class="stat-card accent-green">
+        <div class="stat-number" id="statWatched">—</div>
+        <div class="stat-label">Watched</div>
+      </div>
+      <div class="stat-card accent-blue">
+        <div class="stat-number" id="statWatching">—</div>
+        <div class="stat-label">Currently Watching</div>
+      </div>
+      <div class="stat-card accent-amber">
+        <div class="stat-number" id="statWantTo">—</div>
+        <div class="stat-label">Want to Watch</div>
+      </div>
+      <div class="stat-card accent-rose">
+        <div class="stat-number" id="statAvg">—</div>
+        <div class="stat-label">Avg. TMDB Rating</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ── Detail Modal ───────────────────────────────────── -->
+<div id="modal" class="modal hidden">
+  <div class="modal-backdrop" id="modalBackdrop"></div>
+  <div class="modal-box">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<!-- ── Toast ──────────────────────────────────────────── -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
