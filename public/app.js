@@ -116,7 +116,7 @@ els.loginForm.addEventListener("submit", async (e) => {
     }
     setUser(data);
     els.loginPassword.value = "";
-    await initApp();
+    try { await initApp(); } catch { showToast("Failed to load content", "error"); }
   } catch {
     els.loginError.textContent = "Server error. Try again.";
     els.loginError.classList.remove("hidden");
@@ -143,7 +143,7 @@ els.registerForm.addEventListener("submit", async (e) => {
     setUser(data);
     els.regUsername.value  = "";
     els.regPassword.value  = "";
-    await initApp();
+    try { await initApp(); } catch { showToast("Failed to load content", "error"); }
   } catch {
     els.registerError.textContent = "Server error. Try again.";
     els.registerError.classList.remove("hidden");

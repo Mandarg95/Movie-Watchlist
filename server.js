@@ -11,6 +11,15 @@ const app = express();
 const PORT = 3000;
 const isProd = process.env.NODE_ENV === "production";
 
+if (!process.env.SESSION_SECRET) {
+  if (isProd) {
+    console.error("FATAL: SESSION_SECRET environment variable must be set in production.");
+    process.exit(1);
+  } else {
+    console.warn("WARNING: SESSION_SECRET not set. Using insecure default — do not use in production.");
+  }
+}
+
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(express.json());
 app.use(session({
@@ -35,6 +44,14 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many attempts, please try again later" },
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later" },
 });
 
 // ─── TMDB Config ─────────────────────────────────────────────────────────────
@@ -91,6 +108,8 @@ db.serialize(() => {
 
 // ─── Auth Routes ─────────────────────────────────────────────────────────────
 
+app.use("/api", apiLimiter);
+
 // Register
 app.post("/api/auth/register", authLimiter, async (req, res) => {
   const { username, password } = req.body;
@@ -99,7 +118,7 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
   if (password.length < 6)    return res.status(400).json({ error: "Password must be at least 6 characters" });
 
   try {
-    const hash = await bcrypt.hash(password, 12);
+    const hash = await bcrypt.hash(password, 10);
     db.run("INSERT INTO users (username, password) VALUES (?, ?)", [username.trim(), hash], function (err) {
       if (err) {
         if (err.message.includes("UNIQUE")) return res.status(409).json({ error: "Username already taken" });
