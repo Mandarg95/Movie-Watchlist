@@ -28,14 +28,62 @@
       <button class="nav-tab" data-tab="stats">Stats</button>
     </nav>
 
-    <div class="header-search">
-      <input type="text" id="searchInput" class="search-input" placeholder="Search movies & shows…" />
-      <button id="searchBtn" class="search-btn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </button>
+    <div class="header-actions">
+      <div class="header-search">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search movies & shows…" />
+        <button id="searchBtn" class="search-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+      </div>
+      <div class="user-menu" id="userMenu">
+        <span class="user-name" id="userName"></span>
+        <button class="btn-logout" id="logoutBtn">Sign Out</button>
+      </div>
     </div>
   </div>
 </header>
+
+<!-- ── Auth Modal ────────────────────────────────────────── -->
+<div id="authOverlay" class="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <span class="logo-icon">◈</span>
+      <span class="logo-text">CineList</span>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="authTabLogin">Sign In</button>
+      <button class="auth-tab" id="authTabRegister">Create Account</button>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" class="auth-form">
+      <div class="auth-field">
+        <label class="auth-label">Username</label>
+        <input type="text" id="loginUsername" class="auth-input" placeholder="Enter your username" autocomplete="username" required />
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">Password</label>
+        <input type="password" id="loginPassword" class="auth-input" placeholder="Enter your password" autocomplete="current-password" required />
+      </div>
+      <div class="auth-error hidden" id="loginError"></div>
+      <button type="submit" class="btn-auth">Sign In</button>
+    </form>
+
+    <!-- Register Form -->
+    <form id="registerForm" class="auth-form hidden">
+      <div class="auth-field">
+        <label class="auth-label">Username</label>
+        <input type="text" id="regUsername" class="auth-input" placeholder="Choose a username (min 3 chars)" autocomplete="username" required />
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">Password</label>
+        <input type="password" id="regPassword" class="auth-input" placeholder="Choose a password (min 6 chars)" autocomplete="new-password" required />
+      </div>
+      <div class="auth-error hidden" id="registerError"></div>
+      <button type="submit" class="btn-auth">Create Account</button>
+    </form>
+  </div>
+</div>
 
 <!-- ── Main ───────────────────────────────────────────── -->
 <main class="main">

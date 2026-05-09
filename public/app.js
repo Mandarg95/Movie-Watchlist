@@ -14,6 +14,7 @@ let state = {
   watchlist: [],
   currentItem: null,   // item shown in modal
   searchMode: false,
+  user: null,
 };
 
 // ── DOM Refs ──────────────────────────────────────────────
@@ -47,7 +48,117 @@ const els = {
   statWatching:   $("#statWatching"),
   statWantTo:     $("#statWantTo"),
   statAvg:        $("#statAvg"),
+  // Auth
+  authOverlay:    $("#authOverlay"),
+  authTabLogin:   $("#authTabLogin"),
+  authTabRegister:$("#authTabRegister"),
+  loginForm:      $("#loginForm"),
+  registerForm:   $("#registerForm"),
+  loginUsername:  $("#loginUsername"),
+  loginPassword:  $("#loginPassword"),
+  loginError:     $("#loginError"),
+  regUsername:    $("#regUsername"),
+  regPassword:    $("#regPassword"),
+  registerError:  $("#registerError"),
+  userMenu:       $("#userMenu"),
+  userName:       $("#userName"),
+  logoutBtn:      $("#logoutBtn"),
 };
+
+// ── Auth ──────────────────────────────────────────────────
+function showAuthOverlay() {
+  els.authOverlay.classList.remove("hidden");
+}
+
+function hideAuthOverlay() {
+  els.authOverlay.classList.add("hidden");
+}
+
+function setUser(user) {
+  state.user = user;
+  els.userName.textContent = user.username;
+  hideAuthOverlay();
+}
+
+// Switch between Login / Register tabs
+els.authTabLogin.addEventListener("click", () => {
+  els.authTabLogin.classList.add("active");
+  els.authTabRegister.classList.remove("active");
+  els.loginForm.classList.remove("hidden");
+  els.registerForm.classList.add("hidden");
+  els.loginError.classList.add("hidden");
+});
+
+els.authTabRegister.addEventListener("click", () => {
+  els.authTabRegister.classList.add("active");
+  els.authTabLogin.classList.remove("active");
+  els.registerForm.classList.remove("hidden");
+  els.loginForm.classList.add("hidden");
+  els.registerError.classList.add("hidden");
+});
+
+// Login form submit
+els.loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  els.loginError.classList.add("hidden");
+  try {
+    const res  = await fetch(`${API}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: els.loginUsername.value, password: els.loginPassword.value }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      els.loginError.textContent = data.error || "Login failed";
+      els.loginError.classList.remove("hidden");
+      return;
+    }
+    setUser(data);
+    els.loginPassword.value = "";
+    await initApp();
+  } catch {
+    els.loginError.textContent = "Server error. Try again.";
+    els.loginError.classList.remove("hidden");
+  }
+});
+
+// Register form submit
+els.registerForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  els.registerError.classList.add("hidden");
+  try {
+    const res  = await fetch(`${API}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: els.regUsername.value, password: els.regPassword.value }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      els.registerError.textContent = data.error || "Registration failed";
+      els.registerError.classList.remove("hidden");
+      return;
+    }
+    setUser(data);
+    els.regUsername.value  = "";
+    els.regPassword.value  = "";
+    await initApp();
+  } catch {
+    els.registerError.textContent = "Server error. Try again.";
+    els.registerError.classList.remove("hidden");
+  }
+});
+
+// Logout
+els.logoutBtn.addEventListener("click", async () => {
+  await fetch(`${API}/auth/logout`, { method: "POST" });
+  state.user = null;
+  state.watchlist = [];
+  state.trending  = [];
+  els.trendingGrid.innerHTML   = "";
+  els.watchlistGrid.innerHTML  = "";
+  switchTab("discover");
+  showAuthOverlay();
+});
 
 // ── Utilities ─────────────────────────────────────────────
 function posterUrl(path, size = "w342") {
@@ -513,9 +624,24 @@ async function loadStats() {
 }
 
 // ── Init ──────────────────────────────────────────────────
-(async () => {
+async function initApp() {
   const raw = await fetch(`${API}/trending`).then((r) => r.json()).catch(() => ({ results: [] }));
   state.trending = attachGenreNames(raw.results || []);
   renderDiscover(state.trending);
   await loadWatchlist();   // preload for "already in list" checks in modal
+}
+
+(async () => {
+  try {
+    const res  = await fetch(`${API}/auth/me`);
+    if (res.ok) {
+      const user = await res.json();
+      setUser(user);
+      await initApp();
+    } else {
+      showAuthOverlay();
+    }
+  } catch {
+    showAuthOverlay();
+  }
 })();

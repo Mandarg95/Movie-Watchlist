@@ -3,14 +3,30 @@ const sqlite3 = require("sqlite3").verbose();
 const fs = require("fs");
 const path = require("path");
 const cors = require("cors");
+const bcrypt = require("bcryptjs");
+const session = require("express-session");
+const SQLiteStore = require("connect-sqlite3")(session);
 
 const app = express();
 const PORT = 3000;
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(session({
+  store: new SQLiteStore({ db: "sessions.db", dir: __dirname }),
+  secret: process.env.SESSION_SECRET || "cinelist-secret-change-in-production",
+  resave: false,
+  saveUninitialized: false,
+  cookie: { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 },
+}));
 app.use(express.static(path.join(__dirname, "public")));
+
+// ─── Auth Middleware ──────────────────────────────────────────────────────────
+function requireAuth(req, res, next) {
+  if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+  next();
+}
 
 // ─── TMDB Config ─────────────────────────────────────────────────────────────
 const TMDB_BASE = "https://api.themoviedb.org/3";
@@ -36,9 +52,19 @@ const db = new sqlite3.Database(path.join(__dirname, "watchlist.db"), (err) => {
 
 db.serialize(() => {
   db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      username   TEXT    UNIQUE NOT NULL,
+      password   TEXT    NOT NULL,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS watchlist (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      tmdb_id     INTEGER UNIQUE NOT NULL,
+      user_id     INTEGER NOT NULL REFERENCES users(id),
+      tmdb_id     INTEGER NOT NULL,
       title       TEXT    NOT NULL,
       media_type  TEXT    NOT NULL DEFAULT 'movie',
       poster_path TEXT,
@@ -48,9 +74,64 @@ db.serialize(() => {
       release_date TEXT,
       genres      TEXT,
       status      TEXT    NOT NULL DEFAULT 'want_to_watch',
-      added_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+      added_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(user_id, tmdb_id)
     )
   `);
+});
+
+// ─── Auth Routes ─────────────────────────────────────────────────────────────
+
+// Register
+app.post("/api/auth/register", async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: "Username and password required" });
+  if (username.length < 3)    return res.status(400).json({ error: "Username must be at least 3 characters" });
+  if (password.length < 6)    return res.status(400).json({ error: "Password must be at least 6 characters" });
+
+  try {
+    const hash = await bcrypt.hash(password, 12);
+    db.run("INSERT INTO users (username, password) VALUES (?, ?)", [username.trim(), hash], function (err) {
+      if (err) {
+        if (err.message.includes("UNIQUE")) return res.status(409).json({ error: "Username already taken" });
+        return res.status(500).json({ error: err.message });
+      }
+      req.session.userId   = this.lastID;
+      req.session.username = username.trim();
+      res.status(201).json({ id: this.lastID, username: username.trim() });
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Login
+app.post("/api/auth/login", (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: "Username and password required" });
+
+  db.get("SELECT * FROM users WHERE username = ?", [username.trim()], async (err, user) => {
+    if (err)   return res.status(500).json({ error: err.message });
+    if (!user) return res.status(401).json({ error: "Invalid username or password" });
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(401).json({ error: "Invalid username or password" });
+
+    req.session.userId   = user.id;
+    req.session.username = user.username;
+    res.json({ id: user.id, username: user.username });
+  });
+});
+
+// Logout
+app.post("/api/auth/logout", (req, res) => {
+  req.session.destroy(() => res.json({ message: "Logged out" }));
+});
+
+// Current user
+app.get("/api/auth/me", (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
+  res.json({ id: req.session.userId, username: req.session.username });
 });
 
 // ─── TMDB Proxy Routes ────────────────────────────────────────────────────────
@@ -105,15 +186,15 @@ app.get("/api/details/:type/:id", async (req, res) => {
 // ─── Watchlist Routes ─────────────────────────────────────────────────────────
 
 // GET all watchlist items (with optional filters)
-app.get("/api/watchlist", (req, res) => {
+app.get("/api/watchlist", requireAuth, (req, res) => {
   const { genre, min_rating, status, media_type } = req.query;
-  let sql = "SELECT * FROM watchlist WHERE 1=1";
-  const params = [];
+  let sql = "SELECT * FROM watchlist WHERE user_id = ?";
+  const params = [req.session.userId];
 
-  if (genre) { sql += " AND genres LIKE ?"; params.push(`%${genre}%`); }
-  if (min_rating) { sql += " AND vote_average >= ?"; params.push(parseFloat(min_rating)); }
-  if (status) { sql += " AND status = ?"; params.push(status); }
-  if (media_type) { sql += " AND media_type = ?"; params.push(media_type); }
+  if (genre)      { sql += " AND genres LIKE ?";        params.push(`%${genre}%`); }
+  if (min_rating) { sql += " AND vote_average >= ?";    params.push(parseFloat(min_rating)); }
+  if (status)     { sql += " AND status = ?";           params.push(status); }
+  if (media_type) { sql += " AND media_type = ?";       params.push(media_type); }
   sql += " ORDER BY added_at DESC";
 
   db.all(sql, params, (err, rows) => {
@@ -124,7 +205,7 @@ app.get("/api/watchlist", (req, res) => {
 });
 
 // POST add to watchlist
-app.post("/api/watchlist", (req, res) => {
+app.post("/api/watchlist", requireAuth, (req, res) => {
   const { tmdb_id, title, media_type, poster_path, backdrop_path, overview, vote_average, release_date, genres, status } = req.body;
 
   if (!tmdb_id || !title) return res.status(400).json({ error: "tmdb_id and title required" });
@@ -133,9 +214,9 @@ app.post("/api/watchlist", (req, res) => {
   const watchStatus = status || "want_to_watch";
 
   db.run(
-    `INSERT OR IGNORE INTO watchlist (tmdb_id, title, media_type, poster_path, backdrop_path, overview, vote_average, release_date, genres, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [tmdb_id, title, media_type || "movie", poster_path, backdrop_path, overview, vote_average, release_date, genresStr, watchStatus],
+    `INSERT OR IGNORE INTO watchlist (user_id, tmdb_id, title, media_type, poster_path, backdrop_path, overview, vote_average, release_date, genres, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [req.session.userId, tmdb_id, title, media_type || "movie", poster_path, backdrop_path, overview, vote_average, release_date, genresStr, watchStatus],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(409).json({ error: "Already in watchlist" });
@@ -146,15 +227,15 @@ app.post("/api/watchlist", (req, res) => {
 });
 
 // PATCH update status
-app.patch("/api/watchlist/:id", (req, res) => {
+app.patch("/api/watchlist/:id", requireAuth, (req, res) => {
   const { status } = req.body;
   const validStatuses = ["want_to_watch", "watching", "watched"];
   if (!validStatuses.includes(status)) return res.status(400).json({ error: "Invalid status" });
 
-  db.get("SELECT title FROM watchlist WHERE id = ?", [req.params.id], (err, row) => {
+  db.get("SELECT title FROM watchlist WHERE id = ? AND user_id = ?", [req.params.id, req.session.userId], (err, row) => {
     if (err || !row) return res.status(404).json({ error: "Not found" });
 
-    db.run("UPDATE watchlist SET status = ? WHERE id = ?", [status, req.params.id], function (err2) {
+    db.run("UPDATE watchlist SET status = ? WHERE id = ? AND user_id = ?", [status, req.params.id, req.session.userId], function (err2) {
       if (err2) return res.status(500).json({ error: err2.message });
       log(`STATUS UPDATED to "${status}"`, row.title);
       res.json({ message: "Status updated" });
@@ -163,11 +244,11 @@ app.patch("/api/watchlist/:id", (req, res) => {
 });
 
 // DELETE remove from watchlist
-app.delete("/api/watchlist/:id", (req, res) => {
-  db.get("SELECT title FROM watchlist WHERE id = ?", [req.params.id], (err, row) => {
+app.delete("/api/watchlist/:id", requireAuth, (req, res) => {
+  db.get("SELECT title FROM watchlist WHERE id = ? AND user_id = ?", [req.params.id, req.session.userId], (err, row) => {
     if (err || !row) return res.status(404).json({ error: "Not found" });
 
-    db.run("DELETE FROM watchlist WHERE id = ?", [req.params.id], function (err2) {
+    db.run("DELETE FROM watchlist WHERE id = ? AND user_id = ?", [req.params.id, req.session.userId], function (err2) {
       if (err2) return res.status(500).json({ error: err2.message });
       log("REMOVED", row.title);
       res.json({ message: "Removed from watchlist" });
@@ -176,7 +257,7 @@ app.delete("/api/watchlist/:id", (req, res) => {
 });
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
-app.get("/api/stats", (req, res) => {
+app.get("/api/stats", requireAuth, (req, res) => {
   db.all(
     `SELECT
       COUNT(*) as total,
@@ -184,8 +265,8 @@ app.get("/api/stats", (req, res) => {
       SUM(CASE WHEN status = 'watching' THEN 1 ELSE 0 END) as watching,
       SUM(CASE WHEN status = 'want_to_watch' THEN 1 ELSE 0 END) as want_to_watch,
       AVG(vote_average) as avg_rating
-     FROM watchlist`,
-    [],
+     FROM watchlist WHERE user_id = ?`,
+    [req.session.userId],
     (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json(rows[0]);
