@@ -2,23 +2,23 @@ const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const fs = require("fs");
 const path = require("path");
-const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const session = require("express-session");
 const SQLiteStore = require("connect-sqlite3")(session);
+const rateLimit = require("express-rate-limit");
 
 const app = express();
 const PORT = 3000;
+const isProd = process.env.NODE_ENV === "production";
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
-app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(session({
   store: new SQLiteStore({ db: "sessions.db", dir: __dirname }),
   secret: process.env.SESSION_SECRET || "cinelist-secret-change-in-production",
   resave: false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 },
+  cookie: { httpOnly: true, sameSite: "strict", secure: isProd, maxAge: 7 * 24 * 60 * 60 * 1000 },
 }));
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -27,6 +27,15 @@ function requireAuth(req, res, next) {
   if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
   next();
 }
+
+// ─── Rate Limiting ────────────────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts, please try again later" },
+});
 
 // ─── TMDB Config ─────────────────────────────────────────────────────────────
 const TMDB_BASE = "https://api.themoviedb.org/3";
@@ -83,7 +92,7 @@ db.serialize(() => {
 // ─── Auth Routes ─────────────────────────────────────────────────────────────
 
 // Register
-app.post("/api/auth/register", async (req, res) => {
+app.post("/api/auth/register", authLimiter, async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: "Username and password required" });
   if (username.length < 3)    return res.status(400).json({ error: "Username must be at least 3 characters" });
@@ -106,7 +115,7 @@ app.post("/api/auth/register", async (req, res) => {
 });
 
 // Login
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", authLimiter, async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: "Username and password required" });
 
@@ -114,12 +123,16 @@ app.post("/api/auth/login", (req, res) => {
     if (err)   return res.status(500).json({ error: err.message });
     if (!user) return res.status(401).json({ error: "Invalid username or password" });
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ error: "Invalid username or password" });
+    try {
+      const match = await bcrypt.compare(password, user.password);
+      if (!match) return res.status(401).json({ error: "Invalid username or password" });
 
-    req.session.userId   = user.id;
-    req.session.username = user.username;
-    res.json({ id: user.id, username: user.username });
+      req.session.userId   = user.id;
+      req.session.username = user.username;
+      res.json({ id: user.id, username: user.username });
+    } catch (bcryptErr) {
+      res.status(500).json({ error: bcryptErr.message });
+    }
   });
 });
 

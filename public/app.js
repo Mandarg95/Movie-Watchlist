@@ -104,6 +104,7 @@ els.loginForm.addEventListener("submit", async (e) => {
   try {
     const res  = await fetch(`${API}/auth/login`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: els.loginUsername.value, password: els.loginPassword.value }),
     });
@@ -129,6 +130,7 @@ els.registerForm.addEventListener("submit", async (e) => {
   try {
     const res  = await fetch(`${API}/auth/register`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: els.regUsername.value, password: els.regPassword.value }),
     });
@@ -150,7 +152,7 @@ els.registerForm.addEventListener("submit", async (e) => {
 
 // Logout
 els.logoutBtn.addEventListener("click", async () => {
-  await fetch(`${API}/auth/logout`, { method: "POST" });
+  await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" });
   state.user = null;
   state.watchlist = [];
   state.trending  = [];
@@ -633,7 +635,7 @@ async function initApp() {
 
 (async () => {
   try {
-    const res  = await fetch(`${API}/auth/me`);
+    const res  = await fetch(`${API}/auth/me`, { credentials: "include" });
     if (res.ok) {
       const user = await res.json();
       setUser(user);
