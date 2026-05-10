@@ -491,7 +491,7 @@ body {
   white-space: nowrap;
 }
 
-.toast.hidden { display: none; }
+.toast.hidden { display: none !important; }
 .toast.success { border-color: rgba(74,222,128,0.4); color: var(--green); }
 .toast.error   { border-color: rgba(239,68,68,0.4); color: var(--red); }
 
