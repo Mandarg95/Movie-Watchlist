@@ -1,3 +1,4 @@
 node_modules/
 watchlist.db
 watchlist.log
+.env

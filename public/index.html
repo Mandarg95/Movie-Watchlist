@@ -11,10 +11,9 @@
 </head>
 <body>
 
-<!-- ── Noise Overlay ─────────────────────────────────── -->
 <div class="noise"></div>
 
-<!-- ── Header ────────────────────────────────────────── -->
+<!-- Header -->
 <header class="header">
   <div class="header-inner">
     <div class="logo">
@@ -24,26 +23,34 @@
 
     <nav class="nav-tabs">
       <button class="nav-tab active" data-tab="discover">Discover</button>
-      <button class="nav-tab" data-tab="watchlist">My List</button>
-      <button class="nav-tab" data-tab="stats">Stats</button>
+      <button class="nav-tab"        data-tab="upcoming">Upcoming</button>
+      <button class="nav-tab"        data-tab="watchlist">My List</button>
+      <button class="nav-tab"        data-tab="stats">Stats</button>
     </nav>
+
+    <div class="user-menu">
+      <div class="user-avatar" id="userAvatar"></div>
+      <span class="user-name" id="userName"></span>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
 
     <div class="header-search">
       <input type="text" id="searchInput" class="search-input" placeholder="Search movies & shows…" />
       <button id="searchBtn" class="search-btn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
       </button>
     </div>
   </div>
 </header>
 
-<!-- ── Main ───────────────────────────────────────────── -->
 <main class="main">
 
   <!-- Discover Tab -->
   <section id="tab-discover" class="tab-content active">
     <div class="section-header">
-      <h2 class="section-title">Trending This Week</h2>
+      <h2 class="section-title" id="discoverHeading">Trending This Week</h2>
       <div class="filter-row">
         <select id="filterGenre" class="filter-select">
           <option value="">All Genres</option>
@@ -71,11 +78,23 @@
         </select>
       </div>
     </div>
-    <div id="trendingGrid" class="movie-grid"></div>
+    <div id="trendingGrid"  class="movie-grid"></div>
     <div id="searchResults" class="movie-grid hidden"></div>
     <div id="discoverEmpty" class="empty-state hidden">
       <div class="empty-icon">🎬</div>
       <p>No results found. Try a different search!</p>
+    </div>
+  </section>
+
+  <!-- Upcoming Tab -->
+  <section id="tab-upcoming" class="tab-content hidden">
+    <div class="section-header">
+      <h2 class="section-title">Coming Soon</h2>
+    </div>
+    <div id="upcomingGrid" class="movie-grid"></div>
+    <div id="upcomingEmpty" class="empty-state hidden">
+      <div class="empty-icon">📅</div>
+      <p>No upcoming titles found.</p>
     </div>
   </section>
 
@@ -117,32 +136,18 @@
     <div class="section-header">
       <h2 class="section-title">My Stats</h2>
     </div>
-    <div class="stats-grid" id="statsGrid">
-      <div class="stat-card">
-        <div class="stat-number" id="statTotal">—</div>
-        <div class="stat-label">Total Saved</div>
-      </div>
-      <div class="stat-card accent-green">
-        <div class="stat-number" id="statWatched">—</div>
-        <div class="stat-label">Watched</div>
-      </div>
-      <div class="stat-card accent-blue">
-        <div class="stat-number" id="statWatching">—</div>
-        <div class="stat-label">Currently Watching</div>
-      </div>
-      <div class="stat-card accent-amber">
-        <div class="stat-number" id="statWantTo">—</div>
-        <div class="stat-label">Want to Watch</div>
-      </div>
-      <div class="stat-card accent-rose">
-        <div class="stat-number" id="statAvg">—</div>
-        <div class="stat-label">Avg. TMDB Rating</div>
-      </div>
+    <div class="stats-grid">
+      <div class="stat-card">             <div class="stat-number" id="statTotal">—</div>   <div class="stat-label">Total Saved</div></div>
+      <div class="stat-card accent-green"><div class="stat-number" id="statWatched">—</div>  <div class="stat-label">Watched</div></div>
+      <div class="stat-card accent-blue"> <div class="stat-number" id="statWatching">—</div> <div class="stat-label">Currently Watching</div></div>
+      <div class="stat-card accent-amber"><div class="stat-number" id="statWantTo">—</div>   <div class="stat-label">Want to Watch</div></div>
+      <div class="stat-card accent-rose"> <div class="stat-number" id="statAvg">—</div>      <div class="stat-label">Avg. TMDB Rating</div></div>
     </div>
   </section>
+
 </main>
 
-<!-- ── Detail Modal ───────────────────────────────────── -->
+<!-- Modal -->
 <div id="modal" class="modal hidden">
   <div class="modal-backdrop" id="modalBackdrop"></div>
   <div class="modal-box">
@@ -151,7 +156,7 @@
   </div>
 </div>
 
-<!-- ── Toast ──────────────────────────────────────────── -->
+<!-- Toast -->
 <div id="toast" class="toast hidden"></div>
 
 <script src="app.js"></script>

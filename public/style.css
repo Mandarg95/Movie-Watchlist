@@ -529,3 +529,32 @@ body {
   .movie-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
   .modal-header { flex-direction: column; }
 }
+
+/* ── User Menu ───────────────────────────────────────── */
+.user-menu {
+  display: flex; align-items: center; gap: 10px;
+  margin-left: auto;
+}
+
+.user-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head); font-size: 14px; font-weight: 700;
+  color: #0a0a0f; flex-shrink: 0;
+}
+
+.user-name {
+  font-size: 13px; font-weight: 500; color: var(--text-muted);
+  max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.btn-logout {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-muted); font-family: var(--font-body);
+  font-size: 12px; font-weight: 500;
+  padding: 6px 12px; border-radius: 8px; cursor: pointer;
+  transition: all 0.2s; flex-shrink: 0;
+}
+
+.btn-logout:hover { border-color: var(--rose); color: var(--rose); }
